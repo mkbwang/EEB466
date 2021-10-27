@@ -1,6 +1,7 @@
 # History files
 .Rhistory
 .Rapp.history
+.Rprofile
 
 # Session Data files
 .RData
@@ -19,6 +20,7 @@
 
 # RStudio files
 .Rproj.user/
+*.Rproj
 
 # produced vignettes
 vignettes/*.html
@@ -37,3 +39,12 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# pdf folder
+pdfs/
+
+# virtual environment
+renv/
+
+# images
+*.png
