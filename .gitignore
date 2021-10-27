@@ -48,3 +48,5 @@ renv/
 
 # images
 *.png
+*.pdf
+*.eps
