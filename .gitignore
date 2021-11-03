@@ -50,3 +50,5 @@ renv/
 *.png
 *.pdf
 *.eps
+*.csv
+
