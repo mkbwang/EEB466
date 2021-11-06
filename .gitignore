@@ -51,4 +51,4 @@ renv/
 *.pdf
 *.eps
 *.csv
-
+*.rds
