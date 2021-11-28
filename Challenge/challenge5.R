@@ -53,6 +53,32 @@ spring_data |>
 
 spring_coefs <- coef(RM_spring)
 
+RM_spring |> traj_objfun(
+  rinit=Csnippet("
+      x = log(N0);
+      y = log(P0);
+      "),
+  skeleton=vectorfield(
+    Csnippet("
+      double fr = c/(1+a*exp(x));
+      Dx = r*(1-exp(x)/K) - fr*exp(y);
+      Dy = s*(1-q*exp(y)/exp(x));
+      ")
+  ),
+  dmeasure=Csnippet("
+      lik = -(spring-exp(x))*(spring-exp(x));
+      if (!give_log) lik = exp(lik);
+    "),
+  partrans=parameter_trans(
+    log=c("a", "r", "s", "q", "P0")
+  ),
+  statenames=c("x","y"),
+  paramnames=c("a", "c","r", "K", "s", "q", "N0","P0"),
+  params=c(K=unname(spring_coefs['K']), a=unname(spring_coefs['a']), r=unname(spring_coefs['r']), c=1, s=1, q=20,
+           N0=initpop_spring, P0=unname(spring_coefs['P0'])),
+  est=c("a","s","r","q","P0")
+) -> newmodel
+
 # set up HS model for spring data
 spring_data |>
   traj_objfun(
