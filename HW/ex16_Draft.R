@@ -63,3 +63,126 @@ wiener_df(times=seq(0,10,by=0.01),sigma=1,n=20) |>
   geom_line()+
   guides(color="none")+ theme_bw()+ xlab("Time") + theme(axis.title = element_text(size = 12))+
   labs(y=expression(X[t])) + ggtitle(TeX("Twenty Different Paths for $X_t = X_0 + 0.5(W_t^2 - t)$"))
+
+
+## Q3 Ou process and Em algorithm
+
+### OU process accurate version
+ou <- function (times, alpha, sigma = 1, x0 = 0, n = 1) {
+  t0 <- 0
+  x <- rep(x0,each=n)
+  n <- length(x)
+  X <- array(
+    dim=c(length(times),n),
+    dimnames=list(time=NULL,rep=seq_len(n))
+  )
+  for (k in seq_along(times)) {
+    t <- times[k]
+    M <- x*exp(-alpha*(t-t0))
+    V <- (1-exp(-2*alpha*(t-t0)))/2/alpha*sigma*sigma
+    x <- X[k,] <- rnorm(n=n,mean=M,sd=sqrt(V))
+    t0 <- t
+  }
+  data.frame(
+    t=times,
+    X=as.numeric(X),
+    .id=rep(seq_len(n),each=length(times))
+  )
+}
+
+
+### OU process EM approximation
+ou_em <- function (delta.t, times, alpha, sigma = 1, x0 = 0, n = 1) {
+  t0 <- 0
+  x <- rep(x0,each=n)
+  n <- length(x)
+  X <- array(dim=c(length(times),n))
+  for (k in seq_along(times)) {
+    t <- times[k]
+    nstep <- ceiling((t-t0)/delta.t)
+    dt <- (t-t0)/nstep
+    for (i in seq_len(nstep)) {
+      dw <- rnorm(n=n,mean=0,sd=sqrt(dt))
+      x <- x - alpha*x*dt + sigma*dw
+    }
+    X[k,] <- x
+    t0 <- t
+  }
+  data.frame(
+    t=times,
+    X=as.numeric(X),
+    .id=rep(seq_len(n),each=length(times))
+  )
+}
+
+set.seed(2021)
+ou_analytic <- ou(times=seq(0,36,by=0.6), alpha=1, x0=100, n=100)
+
+ou_em_001 <- ou_em(delta.t=0.01, times=seq(0,36,by=0.6), alpha=1, x0=100, n=100)
+ou_em_001$difference <- ou_em_001$X - ou_analytic$X
+ou_em_001$Step <- "Step size=0.01"
+
+ou_em_005 <- ou_em(delta.t=0.05, times=seq(0,36,by=0.6), alpha=1, x0=100, n=100)
+ou_em_005$difference <- ou_em_005$X - ou_analytic$X
+ou_em_005$Step <- "Step size=0.05"
+
+ou_em_01 <- ou_em(delta.t=0.1, times=seq(0,36,by=0.6), alpha=1, x0=100, n=100)
+ou_em_01$difference <- ou_em_01$X - ou_analytic$X
+ou_em_01$Step <- "Step size=0.1"
+
+ou_em_015 <- ou_em(delta.t=0.15, times=seq(0,36,by=0.6), alpha=1, x0=100, n=100)
+ou_em_015$difference <- ou_em_015$X - ou_analytic$X
+ou_em_015$Step <- "Step size=0.15"
+
+ou_em_02 <- ou_em(delta.t=0.2, times=seq(0,36,by=0.6), alpha=1, x0=100, n=100)
+ou_em_02$difference <- ou_em_02$X - ou_analytic$X
+ou_em_02$Step <- "Step size=0.2"
+
+
+ou_em_03 <- ou_em(delta.t=0.3, times=seq(0,36,by=0.6), alpha=1, x0=100, n=100)
+ou_em_03$difference <- ou_em_03$X - ou_analytic$X
+ou_em_03$Step <- "Step size=0.3"
+
+ou_em_06 <- ou_em(delta.t=0.6, times=seq(0,36,by=0.6), alpha=1, x0=100, n=100)
+ou_em_06$difference <- ou_em_06$X - ou_analytic$X
+ou_em_06$Step <- "Step size=0.6"
+
+ou_ems <- rbind(ou_em_001, ou_em_005, 
+                ou_em_01, ou_em_02, ou_em_03, ou_em_06)
+
+
+ou_analytic_plot <- ggplot(ou_analytic, aes(x=t,y=X,group=.id,color=factor(.id)))+
+  geom_line()+
+  guides(color="none")+
+  theme_bw()+ xlab("Time") + theme(axis.title = element_text(size = 12), plot.title=element_text(size = 12))+
+  xlab("Time") + ylab(TeX("$X_t$")) + ggtitle("Analytic Solution of Ornstein-Uhlenbeck process")
+
+ou_ems_diff_plot <- ggplot(ou_ems, aes(x=t,y=difference,group=.id,color=factor(.id))) + facet_wrap(vars(Step), nrow = 3)+
+  geom_line()+
+  guides(color="none") + theme_bw()+ xlab("Time") + theme(axis.title = element_text(size = 12), plot.title=element_text(size = 12))+
+  labs(y="Trajectory Difference") + ggtitle("Difference between E-M Simulation and Analytic Solution of O-U Process")
+
+plot_grid(ou_analytic_plot, ou_ems_diff_plot, align="v", labels = c('A', 'B'), label_size = 12)
+
+
+## use pomp to run Rosensweig-MacArthur Model
+
+simulate(
+  t0 = 0, times=seq(0,20,by=0.02),
+  rinit=Csnippet("x = log(n0); y=log(p0);"),
+  rprocess=euler(
+    Csnippet("x += (1 - exp(x)/gamma - exp(y)/(1+exp(x)) - sigma1 * sigma1 / 2)*dt + sigma1 * rnorm(0,sqrt(dt));
+             y += (exp(x) / (1+exp(x)) - alpha - sigma2 * sigma2 / 2)*dt + sigma2 * rnorm(0, sqrt(dt));"),
+    delta.t=0.01
+  ),
+  paramnames=c("n0", "p0", "alpha", "gamma", "sigma1", "sigma2"), statenames=c("x", "y"),
+  params=c(n0=4, p0=3, alpha=3, gamma=2.5, sigma1=0.01, sigma2=0.01)
+) -> RM
+
+datas <- RM |> as.data.frame()
+
+RM |>
+  as.data.frame() |>
+  ggplot(aes(x=exp(x),y=exp(y)))+
+  labs(y=expression(P),x=expression(N))+
+  geom_line()
