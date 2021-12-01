@@ -167,8 +167,9 @@ plot_grid(ou_analytic_plot, ou_ems_diff_plot, align="v", labels = c('A', 'B'), l
 
 ## use pomp to run Rosensweig-MacArthur Model
 
+### generate the model
 simulate(
-  t0 = 0, times=seq(0,20,by=0.02),
+  t0 = 0, times=seq(0,40,by=0.02),
   rinit=Csnippet("x = log(n0); y=log(p0);"),
   rprocess=euler(
     Csnippet("x += (1 - exp(x)/gamma - exp(y)/(1+exp(x)) - sigma1 * sigma1 / 2)*dt + sigma1 * rnorm(0,sqrt(dt));
@@ -176,13 +177,38 @@ simulate(
     delta.t=0.01
   ),
   paramnames=c("n0", "p0", "alpha", "gamma", "sigma1", "sigma2"), statenames=c("x", "y"),
-  params=c(n0=4, p0=3, alpha=3, gamma=2.5, sigma1=0.01, sigma2=0.01)
+  params=c(n0=4, p0=3, alpha=3, gamma=2.5, sigma1=0.02, sigma2=0.02)
 ) -> RM
 
-datas <- RM |> as.data.frame()
 
-RM |>
-  as.data.frame() |>
-  ggplot(aes(x=exp(x),y=exp(y)))+
+### set parameters
+starting_points_trajectory <- expand_grid(x=seq(1, 5), y=seq(1, 5)) |> as.matrix() |> t()
+
+coef_mat = parmat(coef(RM), nrep=25)
+coef_mat[1:2,] <- starting_points_trajectory
+
+coef_mat['alpha', ] <- 0.75
+regime1 <- RM |> simulate(params=coef_mat) |> as.data.frame()
+regime1$Regime <- "Regime 1"
+
+coef_mat['alpha', ] <- 0.5
+regime2 <- RM |> simulate(params=coef_mat) |> as.data.frame()
+regime2$Regime <- "Regime 2"
+
+coef_mat['alpha', ] <- 0.25
+regime3 <- RM |> simulate(params=coef_mat) |> as.data.frame()
+regime3$Regime <- "Regime 3"
+
+allpaths <- rbind(regime1, regime2, regime3)
+
+ggplot(allpaths, aes(x=exp(x),y=exp(y), group=.id)) + facet_wrap(vars(Regime), nrow = 1)+
+  geom_path() + guides(color="none")+
+  theme_bw() + labs(y="Predator Population",x="Prey Population") +
+  theme(axis.title = element_text(size = 12), plot.title=element_text(size = 12))+
+  ggtitle("Sample Paths in Three Stability Regimes")
+
+
+regime1 |>
+  ggplot(aes(x=exp(x),y=exp(y), group=.id))+
   labs(y=expression(P),x=expression(N))+
-  geom_line()
+  geom_path()
