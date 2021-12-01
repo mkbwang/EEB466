@@ -207,8 +207,3 @@ ggplot(allpaths, aes(x=exp(x),y=exp(y), group=.id)) + facet_wrap(vars(Regime), n
   theme(axis.title = element_text(size = 12), plot.title=element_text(size = 12))+
   ggtitle("Sample Paths in Three Stability Regimes")
 
-
-regime1 |>
-  ggplot(aes(x=exp(x),y=exp(y), group=.id))+
-  labs(y=expression(P),x=expression(N))+
-  geom_path()
