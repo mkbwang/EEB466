@@ -47,9 +47,9 @@ ggplot(allpaths, aes(x=exp(x),y=exp(y), group=.id)) + facet_wrap(vars(Regime), n
   theme(axis.title = element_text(size = 12), plot.title=element_text(size = 12), strip.text = element_text(size=10))+
   ggtitle("Sample Paths in Three Stability Regimes")
 
-## set density plots
+## density plots
 
-timepoints <- c(0, 2, 4, 8, 16)
+timepoints <- c(0, 4, 8, 16, 32, 56)
 starting_points_density <- expand_grid(x=seq(0.05, 5, 0.05), y=seq(0.05, 5, 0.05)) |> as.matrix() |> t()
 
 coef_mat = parmat(coef(RM), nrep=10000)
@@ -67,14 +67,31 @@ coef_mat['alpha', ] <- 0.25
 regime3 <- RM |> simulate(params=coef_mat, times=timepoints) |> as.data.frame()
 regime3$Regime <- "Regime 3"
 
-allpoints <- rbind(regime1, regime2, regime3)
-allpoints$time <- sprintf('t=%d', allpoints$time)
-allpoints$time <- factor(allpoints$time, levels=c("t=0", "t=2", "t=4", "t=8", "t=16"))
+transient <- rbind(regime1 %>% filter(time < 40), regime2 %>% filter(time < 40), regime3 %>% filter(time < 40))
+stable <- rbind(regime1 %>% filter(time == 56), regime2 %>% filter(time == 56), regime3 %>% filter(time == 56))
+transient$time <- sprintf('t=%d', allpoints$time)
+transient$time <- factor(allpoints$time, levels=c("t=0", "t=4", "t=8", "t=16", "t=32"))
 
-ggplot(allpoints, aes(x=exp(x), y=exp(y))) + facet_grid(rows=vars(time), cols=vars(Regime))+
+### transient density plot
+ggplot(transient, aes(x=exp(x), y=exp(y))) + facet_grid(rows=vars(time), cols=vars(Regime))+
   geom_bin2d(bins = 100) + scale_fill_continuous(type="viridis", limits=c(0, 50), oob = scales::squish)+
-  labs(y="Predator Population",x="Prey Population") + scale_y_continuous(limits=c(0, 5.5), breaks=seq(0, 5))+
+  labs(y="Predator Population",x="Prey Population") + scale_y_continuous(limits=c(0, 5.5), breaks=seq(0, 5))+theme_bw()+
   theme(axis.title = element_text(size = 12), plot.title=element_text(size = 12), strip.text = element_text(size=10))+
-  ggtitle("Density Dynamics under Three Stability Regimes")
+  ggtitle("Transient Density Dynamics under Three Stability Regimes")
 
-  
+
+### stable density plot
+stable_2d <- ggplot(stable, aes(x=exp(x), y=exp(y))) + facet_grid(cols=vars(Regime))+
+  geom_bin2d(bins = 100) + scale_fill_continuous(type="viridis", limits=c(0, 50), oob = scales::squish)+
+  labs(y="Predator Population",x="Prey Population") + theme_bw()+
+  theme(axis.title = element_text(size = 12), plot.title=element_text(size = 12), strip.text = element_text(size=10))+
+  ggtitle("Stable Density under Three Stability Regimes")
+
+stable_regime1 <- stable |> filter(Regime == "Regime 1")
+
+stable_1d <- ggplot(stable_regime1, aes(x=exp(x))) + 
+  geom_histogram(color="black", fill="white", binwidth = 0.02)+
+  labs(x="Prey Population", y="Count") + ggtitle("Stable Prey Distribution in Regime 1")+theme_bw()+
+  theme(axis.title = element_text(size = 12), plot.title=element_text(size = 12), strip.text = element_text(size=10))
+
+plot_grid(stable_2d, stable_1d, align="v", labels = c('A', 'B'), label_size = 12, nrow=2)
